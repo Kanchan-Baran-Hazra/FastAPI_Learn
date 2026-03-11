@@ -1,7 +1,18 @@
 from pydantic import BaseModel
+import uuid
 
 class Book(BaseModel):
-    id:int
+    title:str
+    subtitle:str
+    author:str
+    published:str
+    publisher:str
+    pages:int
+    description:str
+    website:str
+
+class ReturnBook(BaseModel):
+    uid:uuid.UUID
     title:str
     subtitle:str
     author:str

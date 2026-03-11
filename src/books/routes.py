@@ -1,52 +1,50 @@
-from fastapi import APIRouter,HTTPException,status
+from fastapi import APIRouter,HTTPException,status,Depends
 from typing import List
-from .schemas import Book,BookUpdate
+from .schemas import Book,BookUpdate,ReturnBook
 from .book_data import books
+from .service import BookService
+from src.db.main import get_db
+from sqlalchemy.ext.asyncio.session import AsyncSession
+import uuid
 
 
 router=APIRouter()
 
+book_service=BookService()
 
-@router.get("/",response_model=List[Book])
-def get_books() -> list:
-    return books
+@router.get("/",response_model=List[ReturnBook])
+async def get_books(session:AsyncSession=Depends(get_db)) -> list:
+    return await book_service.get_all_book(session)
 
-@router.get("/{book_id}")
-def get_book(book_id: int) ->dict:
-    for i in books:
-        if i['id']==book_id:
-            return i
+@router.get("/{book_id}",response_model=ReturnBook)
+async def get_book(book_id: uuid.UUID,session:AsyncSession=Depends(get_db)) ->dict:
+    data=await book_service.get_book_by_id(session,book_id)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Book not found!')
+    return data
+
+@router.post("/add_books",response_model=ReturnBook)
+async def add_books(book: Book,session:AsyncSession=Depends(get_db)):
+    data=await book_service.add_book(session,book)
+    return data
+
+
+@router.patch("/{book_id}",response_model=ReturnBook)
+async def update_books(book_id: uuid.UUID, book1: BookUpdate,session:AsyncSession=Depends(get_db)):
+    data=await book_service.update_book(session,book_id,book1)
+
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Book not found!")
+    return data
+
+@router.delete("/{book_id}")
+async def delete_books(book_id: uuid.UUID,session:AsyncSession=Depends(get_db)):
+    data=await book_service.delete_book(session,book_id)
+
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Book not found!')
     
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Book not found!')
-
-@router.post("/add_books",response_model=Book)
-def add_books(book: Book):
-    new_book=book.model_dump()
-    books.append(new_book)
-
-    return new_book
-
-
-@router.patch("/{book_id}",response_model=Book)
-def update_books(book_id: int, book1: BookUpdate):
-    for book in books:
-        if book['id']==book_id:
-            book['title']=book1.title
-            book['subtitle']=book1.subtitle
-            book['description']=book1.description
-
-            return book
-        
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Book not found!")
-
-@router.delete("/{book_id}",response_model=List[Book])
-def delete_books(book_id: int):
-    for i in books:
-        if i['id']==book_id:
-            books.remove(i)
-            return books
-        
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Book not found!')
+    return data
 
 
 
@@ -55,7 +53,11 @@ def delete_books(book_id: int):
 
 
 
-
+# {
+#   "title": "kanchans",
+#   "subtitle": "for kanchans",
+#   "description": "for father"
+# }
 
 
 
